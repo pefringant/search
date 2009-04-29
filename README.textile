@@ -1,0 +1,234 @@
+h1. Multi-model site search plugin for CakePHP.
+
+This plugin provides an easy to install and non-obstrusive solution to add a local search engine to your Cake app.
+
+**Features :**
+* Uses MySQL Full-Text engine.
+* Easy install : download the files and create 1 db table, no matter how many Models you want to index.
+* Non-obstrusive : you don't need to add Full-Text indexes on existing tables.
+* Several search modes : natural language, natural language with query expansion, and boolean mode.
+
+h1. 1. Installation
+
+h2 1.1. Files
+
+To install, copy the 'search' directory to the 'plugins' folder:
+
+<pre><code>git clone git://github.com/kalt/search.git</code></pre>
+
+Or click 'download' and copy the content of the zip file into your 'plugins' folder.
+
+h2. 1.2. DB table
+
+Create one db table as described in <code>search/config/sql/search.sql</code>
+
+h1. 2. Setup
+
+h2. 2.1. Models
+
+Link any model to the Searchable Behavior, and define the fields you want to index.
+
+<pre><code>class Article extends AppModel
+{
+	var $actsAs = array('Search.Searchable' => array(
+		'fields' => array('title', 'body')
+	));
+}</code></pre>
+
+That's it. Whenever you save or edit a record, the 'title' and 'body' fields will be indexed.
+
+h2. 2.2. Search form
+
+Create a search form anywhere (most of the time in the layout).
+
+The form must contain a text input field named 'q'.
+
+<pre><code>echo $form->create('Search', array('url' => array(
+	'plugin' => 'search', 
+	'controller' => 'searches',
+	'action' => 'index'
+)));
+
+echo $form->input('q', array('label' => 'Keywords:'));
+
+echo $form->end();</code></pre>
+
+h2. 2.3 Search results page
+
+Create a view to display the paginated search results : <code>{app}/views/plugins/search/searches/index.ctp</code>
+
+Available data :
+* <code>$q</code> : Search terms.
+* <code>$data</code> : Paginated results.
+
+Example:
+
+<pre><code><h1>Search results</h1>
+
+<p>You searched for: <?php echo $q; ?></p>
+
+<div id="paginator-counter">
+    <?php echo $paginator->counter(array('format' => "Page %page% on %pages%, %current% results on %count%")); ?> 
+</div>
+
+<?php foreach($data as $row):
+    $model_name = key($row);
+
+    switch($model_name)
+    {
+        case 'Article':
+            $link = $html->link($row['Article']['title'], array(
+            	'plugin' => null,
+                'controller' => 'articles',
+                'action' => 'view',
+                $row['Article']['id']
+            ));
+            $description = $row['Article']['body'];
+            break;
+
+        case 'Video':
+            $link = $html->link($row['Video']['title'], array(
+            	'plugin' => null,
+                'controller' => 'videos',
+                'action' => 'play',
+                $row['Video']['id']
+            ));
+            $description = $row['Video']['description'];
+            break;
+    } ?>
+    <div class="ressource">
+        <h2><?php echo $link; ?></h2>
+        <p align="justify"><?php echo $description; ?></p>        
+    </div>
+<?php endforeach; ?> 
+
+<div class="paging">
+    <?php echo $paginator->prev('<< '.__('Previous', true));?>
+ |  <?php echo $paginator->numbers();?>
+    <?php echo $paginator->next(__('Next', true).' >>');?>
+</div></code></pre>
+
+h2. 3. Options
+
+h3. 3.1. Search modes
+
+Two available search modes :
+* <code>boolean</code> (default) : MySQL performs a Full-Text boolean search, ie all terms must be in the results.
+* <code>natural</code> : MySQL performs a Full-Text natural language search, ordering results by relevance.
+
+More info on the Full-Text search functions :
+http://dev.mysql.com/doc/refman/5.0/en/fulltext-search.html
+
+To change the search mode, simply add this line in your <code>{app}/config/bootstrap.php</code>
+
+<pre><code>Configure::write('Search.mode', 'natural');</code></pre>
+
+h2. 3.2. Query expansion
+
+This is an option for the natural language search mode only. More info here :
+http://dev.mysql.com/doc/refman/5.0/en/fulltext-query-expansion.html
+
+Defaults to null : it will enable query expansion if the search query is only one word.
+
+To redefine this option, simply add this line in your <code>{app}/config/bootstrap.php</code>
+
+<pre><code>Configure::write('Search.withQueryExpansion', true/false);</code></pre>
+
+If set to false, query expansion will never be used at all, even if the search query is only one word.
+
+If set to true, query expansion will always be used.
+
+h2. 3.3. Allowed characters in search terms
+
+By default the allowed chars are alphanumeric only.
+
+To add allowed characters, simply add your own list in your <code>{app}/config/bootstrap.php</code>
+
+<pre><code>Configure::write('Search.allowedChars', array(' '));</code></pre>
+
+Here, the only accepted characters will be alphanumeric and space ' '.
+
+Defaults to valid french accents, and space ' '.
+
+h2. 4. Pretty URL
+
+The default search results URL is <code>/search/searches/search+terms</code>
+
+You can redefine it by adding a simple route in <code>{app}/config/routes.php</code>
+
+<pre><code>Router::connect(
+	'/search/*',
+	array('plugin' => 'search', 'controller' => 'searches', 'action' => 'index')
+);</code></pre>
+
+Will give you <code>/search/search+terms</code>
+
+h2. 5. Index existing data
+
+If you want to install this plugin in an existing app, with already filled tables, add the 3 following actions in your <code>{app}/app_controller.php</code>
+
+<pre><code>/**
+ * Builds the search index for the current model based on existing data.
+ */
+function admin_build_search_index()
+{
+	$this->autoRender = false;
+	
+	$model =& $this->{$this->modelClass};
+	
+	if(!isset($model->Behaviors->Searchable))
+	{
+		echo "<pre>Error : the {$model->alias} model is not linked with Searchable Behavior.</pre>";
+		exit;
+	}
+	
+	$data = $model->find('all');
+	
+	foreach($data as $row)
+	{
+		$model->set($row);
+
+		$model->Behaviors->Searchable->Search->saveIndex(
+			$model->alias,
+			$model->id,
+			$model->buildIndex()
+		);
+	}
+	
+	echo "<pre>Search index for model {$model->alias} have been built.</pre>";
+}
+
+/**
+ * Delete the search index for the current model.
+ */
+function admin_delete_search_index()
+{
+	$this->autoRender = false;
+	
+	$model =& $this->{$this->modelClass};
+	
+	if(!isset($model->Behaviors->Searchable))
+	{
+		echo "<pre>Error : the {$model->alias} model is not linked with Searchable Behavior.</pre>";
+		exit;
+	}
+	
+	$model->Behaviors->Searchable->Search->deleteAll(array(
+		'model' => $model->alias
+	));
+	
+	echo "<pre>Search index for model {$model->alias} have been deleted.</pre>";
+}
+
+/**
+ * Rebuilds the search index for the current model based on existing data.
+ */
+function admin_rebuild_search_index()
+{
+	$this->admin_delete_search_index();
+	$this->admin_build_search_index();
+}</code></pre>
+
+You can now go to <code>/admin/{any_controller}/build_search_index</code> to build the search index based on existing data. Beware, it could take some time, depending on the volume of existing data to index.
+
+Any suggestion is welcome!
