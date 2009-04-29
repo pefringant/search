@@ -10,7 +10,7 @@ This plugin provides an easy to install and non-obstrusive solution to add a loc
 
 h1. 1. Installation
 
-h2 1.1. Files
+h2. 1.1. Files
 
 To install, copy the 'search' directory to the 'plugins' folder:
 
