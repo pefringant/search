@@ -1,4 +1,4 @@
-h1. Multi-model site search plugin for CakePHP.
+h1. Multi-model site search plugin for CakePHP
 
 This plugin provides an easy to install and non-obstrusive solution to add a local search engine to your Cake app.
 
@@ -53,7 +53,7 @@ echo $form->input('q', array('label' => 'Keywords:'));
 
 echo $form->end();</code></pre>
 
-h2. 2.3 Search results page
+h2. 2.3. Search results page
 
 Create a view to display the paginated search results : <code>{app}/views/plugins/search/searches/index.ctp</code>
 
@@ -123,7 +123,7 @@ To change the search mode, simply add this line in your <code>{app}/config/boots
 
 <pre><code>Configure::write('Search.mode', 'natural');</code></pre>
 
-h2. 3.2. Query expansion
+h3. 3.2. Query expansion
 
 This is an option for the natural language search mode only. More info here :
 http://dev.mysql.com/doc/refman/5.0/en/fulltext-query-expansion.html
@@ -138,7 +138,7 @@ If set to false, query expansion will never be used at all, even if the search q
 
 If set to true, query expansion will always be used.
 
-h2. 3.3. Allowed characters in search terms
+h3. 3.3. Allowed characters in search terms
 
 By default the allowed chars are alphanumeric only.
 
