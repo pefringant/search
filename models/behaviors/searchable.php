@@ -70,7 +70,9 @@ class SearchableBehavior extends ModelBehavior
 			'model_id' => $model->id,
 		);
 		
-		return $this->Search->deleteAll($conditions, false, true);
+		$this->Search->deleteAll($conditions, false, true);
+		
+		return true;
 	}
 	
 	/**
